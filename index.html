@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>推拉</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0b0e" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="推拉">
+<meta name="format-detection" content="telephone=no">
+<style>
+:root{
+  --bg:#fff; --surface:#f6f6f7; --surface2:#eeeef0; --ink:#0b0b0e; --ink2:#3f3f46;
+  --muted:#8a8a93; --line:#e6e6e9; --acc:#2563eb; --acc-soft:#eaf0ff; --ok:#15803d; --warn:#b45309;
+  --r:16px; --ease:cubic-bezier(.22,.61,.36,1);
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0b0b0e; --surface:#15151a; --surface2:#1d1d23; --ink:#f4f4f6; --ink2:#c9c9d1;
+         --muted:#7c7c88; --line:#232329; --acc:#4c8dff; --acc-soft:#16233d; --ok:#4ade80; --warn:#fbbf24; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:400 15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC",sans-serif;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  overscroll-behavior-y:none;
+}
+.wrap{max-width:520px;margin:0 auto;padding:0 18px}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+input{font:inherit;color:inherit}
+
+header{padding:calc(14px + env(safe-area-inset-top)) 0 8px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.date{font-size:13px;color:var(--muted);letter-spacing:.2px}
+.title{font-size:26px;font-weight:650;letter-spacing:-.6px;margin-top:2px;line-height:1.15}
+.chip{font-size:12px;color:var(--ink2);background:var(--surface);border:1px solid var(--line);
+  padding:5px 10px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.days{display:flex;gap:6px;overflow-x:auto;padding:10px 18px 14px 0;margin-right:-18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.days::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;padding:8px 14px;border-radius:999px;font-size:13px;color:var(--ink2);
+  background:var(--surface);border:1px solid transparent;transition:all .16s var(--ease);
+  min-height:36px;display:flex;align-items:center}
+.day.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.day.done::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--ok);margin-left:6px}
+.day.on.done::after{background:var(--acc)}
+.pill{font-size:12.5px;padding:8px 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink2);transition:all .16s var(--ease);min-height:36px}
+.pill.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.card{background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px;
+      animation:rise .28s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.exhd{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.exname{font-size:16px;font-weight:600;letter-spacing:-.2px}
+.scheme{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cue{font-size:12.5px;color:var(--muted);margin-top:4px}
+.goal{font-size:12px;color:var(--acc);margin-top:5px;font-weight:600;font-variant-numeric:tabular-nums}
+.lastline{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.last{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ghost{font-size:11.5px;color:var(--acc);border:1px solid var(--line);background:var(--bg);
+  padding:4px 9px;border-radius:8px;transition:transform .14s var(--ease)}
+.ghost:active{transform:scale(.95)}
+
+.sets{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.srow{display:grid;grid-template-columns:18px 1fr 1fr 54px 34px;gap:7px;align-items:center}
+.sidx{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
+.field{position:relative;display:flex;align-items:center}
+.field input{width:100%;height:44px;border-radius:11px;border:1px solid transparent;background:var(--bg);
+  text-align:center;font-size:16px;font-variant-numeric:tabular-nums;font-weight:550;
+  transition:border-color .16s var(--ease),background .16s var(--ease);appearance:none;-webkit-appearance:none}
+.field input::placeholder{color:var(--muted);font-weight:400}
+.field input:focus{outline:none;border-color:var(--acc)}
+.srow.done .field input{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 9%,var(--bg))}
+.tick{height:34px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;
+  justify-content:center;transition:all .16s var(--ease);color:transparent}
+.tick svg{width:15px;height:15px}
+.srow.done .tick{background:var(--ok);border-color:var(--ok);color:#fff}
+.hdr{display:grid;grid-template-columns:18px 1fr 1fr 54px 34px;gap:7px;font-size:10.5px;
+  color:var(--muted);margin-top:10px;text-align:center;letter-spacing:.3px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.stat{background:var(--surface);border-radius:12px;padding:12px 8px;text-align:center}
+.stat b{display:block;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+.stat span{font-size:10.5px;color:var(--muted)}
+
+#timer{position:fixed;left:0;right:0;bottom:calc(74px + env(safe-area-inset-bottom));
+  max-width:520px;margin:0 auto;padding:0 14px;z-index:30;
+  transform:translateY(130%);transition:transform .28s var(--ease)}
+#timer.show{transform:none}
+.tbox{background:var(--ink);color:var(--bg);border-radius:15px;padding:10px 12px;
+  display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.ring{width:38px;height:38px;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring .t{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-variant-numeric:tabular-nums;font-weight:600}
+.tlabel{font-size:12px;opacity:.72;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tnum{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.tbtns{display:flex;gap:6px}
+.tbtn{font-size:12px;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.16);min-height:34px}
+
+nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs{display:flex;max-width:520px;margin:0 auto}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 8px;
+  color:var(--muted);font-size:10px;letter-spacing:.2px;transition:color .16s var(--ease)}
+.tab svg{width:21px;height:21px}
+.tab.on{color:var(--ink)}
+.tab.on svg{stroke-width:2.1}
+
+details{background:var(--surface);border-radius:14px;margin-bottom:10px;overflow:hidden}
+summary{padding:15px 16px;font-size:14.5px;font-weight:600;display:flex;justify-content:space-between;
+  align-items:center;list-style:none;min-height:50px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"";width:7px;height:7px;border-right:1.6px solid var(--muted);
+  border-bottom:1.6px solid var(--muted);transform:rotate(45deg);transition:transform .2s var(--ease)}
+details[open] summary::after{transform:rotate(-135deg)}
+.pbody{padding:0 16px 16px;font-size:13.5px;color:var(--ink2);line-height:1.65}
+.pbody b{color:var(--ink);font-weight:600}
+.pbody .row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.pbody .row:first-child{border-top:none}
+.pbody .row span:last-child{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{font-size:10.5px;color:var(--muted);border:1px solid var(--line);padding:2px 7px;border-radius:99px;margin-left:6px}
+
+.spark{width:100%;height:52px;display:block;margin-top:6px}
+.mrow{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px}
+.mval{font-variant-numeric:tabular-nums;font-weight:600}
+.delta{font-size:11.5px;color:var(--muted);margin-left:6px;font-weight:400}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 0;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+th{font-size:11px;color:var(--muted);font-weight:500}
+td.r,th.r{text-align:right}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 0;text-align:left}
+
+.inp{width:100%;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);
+  padding:0 13px;font-size:16px;font-variant-numeric:tabular-nums}
+.inp:focus{outline:none;border-color:var(--acc)}
+.btn{height:48px;border-radius:13px;background:var(--ink);color:var(--bg);font-size:15px;
+  font-weight:600;width:100%;transition:transform .14s var(--ease),opacity .14s}
+.btn:active{transform:scale(.985);opacity:.9}
+.btn.sec{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lbl{font-size:11.5px;color:var(--muted);margin:0 0 6px 2px;letter-spacing:.2px}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translate(-50%,10px);
+  background:var(--ink);color:var(--bg);font-size:13px;padding:10px 16px;border-radius:11px;
+  opacity:0;pointer-events:none;transition:all .22s var(--ease);z-index:60;max-width:80%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="top">
+    <div>
+      <div class="date" id="hDate">—</div>
+      <div class="title" id="hTitle">训练</div>
+    </div>
+    <div class="chip" id="hChip">—</div>
+  </div>
+  <div class="days" id="hDays"></div>
+</header>
+
+<main class="wrap">
+  <section id="v-train"></section>
+  <section id="v-plan" hidden></section>
+  <section id="v-prog" hidden></section>
+  <section id="v-data" hidden></section>
+</main>
+
+<div id="timer">
+  <div class="tbox">
+    <div class="ring">
+      <svg width="38" height="38"><circle cx="19" cy="19" r="16" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3"/>
+      <circle id="ringFg" cx="19" cy="19" r="16" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="0"/></svg>
+      <div class="t"></div>
+    </div>
+    <div style="min-width:0">
+      <div class="tlabel" id="tLabel">组间休息</div>
+      <div class="tnum" id="tNum">0:00</div>
+    </div>
+    <div class="tbtns">
+      <button class="tbtn" data-act="t-add">+15</button>
+      <button class="tbtn" data-act="t-skip">跳过</button>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <div class="tabs">
+    <button class="tab on" data-view="train">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/></svg>训练</button>
+    <button class="tab" data-view="plan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 5.5h16M4 12h16M4 18.5h10"/></svg>计划</button>
+    <button class="tab" data-view="prog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 19V5M4 19h16"/><path d="M7.5 15l3.5-4.5 3 2.5 3.5-5"/></svg>进度</button>
+    <button class="tab" data-view="data">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9 2 2 0 1 1-2.8 2.8 1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2 2 2 0 1 1-2.8-2.8A1.7 1.7 0 0 0 4.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9 2 2 0 1 1 2.8-2.8A1.7 1.7 0 0 0 11.5 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2 2 2 0 1 1 2.8 2.8A1.7 1.7 0 0 0 19.4 11a2 2 0 1 1 0 4z"/></svg>数据</button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PLAN = {
+  pushA:{name:"推A",full:"推A · 胸主导",tag:"水平推",note:"卧推排第一，弱项优先",
+    ex:[
+      {id:"bench",name:"杠铃卧推",sets:4,reps:"5–7",rir:"2",rest:180,cue:"肩胛后收下沉，杠触胸线，脚踩实",goal:"77.5×6"},
+      {id:"incdb",name:"上斜哑铃卧推",sets:3,reps:"8–10",rir:"2",rest:120,cue:"椅背 30–45°，别耸肩",unit:"单侧",goal:"60×10"},
+      {id:"flyhl",name:"高位→低位绳索夹胸",sets:3,reps:"12–15",rir:"1",rest:75,cue:"从肩高往下夹，末段挤 1 秒",goal:"27.5×12"},
+      {id:"lateral1",name:"坐姿哑铃侧平举",sets:3,reps:"12–15",rir:"1",rest:75,cue:"小指略高，别甩",unit:"单侧",goal:"17.5×12"},
+      {id:"pushdown",name:"绳索三头下压",sets:2,reps:"10–12",rir:"1",rest:60,cue:"肘固定，只动小臂",goal:"45×12"},
+      {id:"hack",name:"哈克深蹲",sets:3,reps:"8–12",rir:"2",rest:150,cue:"膝盖顺脚尖，别锁死",goal:"70×10"}
+    ]},
+  pullA:{name:"拉A",full:"拉A · 背宽",tag:"垂直拉 + 髋铰链",note:"W2：RDL 降到 2 组，给周五深蹲让路",
+    ex:[
+      {id:"pullup",name:"引体向上 / 高位下拉",sets:4,reps:"6–10",rir:"2",rest:150,cue:"先沉肩再拉，别用惯性",unit:"自重/负重",goal:"80×10"},
+      {id:"rowcab",name:"坐姿绳索划船",sets:3,reps:"8–12",rir:"2",rest:120,cue:"肘贴身后拉，末端停 1 秒",goal:"75×10"},
+      {id:"pushdown2",name:"直臂下压",sets:2,reps:"12–15",rir:"1",rest:75,cue:"背阔发力，肘微屈固定",goal:"50×12"},
+      {id:"facepull",name:"面拉",sets:3,reps:"15–20",rir:"1",rest:60,cue:"W2 改成肘高于手，往下拉，3 组都做满",goal:"45×15"},
+      {id:"curl",name:"哑铃弯举",sets:3,reps:"10–12",rir:"1",rest:75,cue:"上臂别晃",unit:"单侧",goal:"50×10"},
+      {id:"rdl",name:"罗马尼亚硬拉",sets:2,reps:"6–8",rir:"2-3",rest:180,cue:"髋后移，腘绳拉伸感优先",goal:"110×6"},
+      {id:"sldb",name:"单腿罗马尼亚硬拉",sets:2,reps:"8–12",rir:"2",rest:90,cue:"每腿，骨盆别翻",unit:"单侧",goal:"15×12"}
+    ]},
+  pushB:{name:"推B",full:"推B · 肩主导",tag:"垂直推 + 下胸",note:"W2：上斜推胸 3 组，替掉倒蹬机",
+    ex:[
+      {id:"smithpress",name:"站姿杠铃实力推",sets:4,reps:"6–8",rir:"2",rest:150,cue:"站距髋宽，杠从锁骨推起，核心收紧不下沉",goal:"47.5×6"},
+      {id:"incline",name:"上斜杠铃推胸",sets:3,reps:"8–10",rir:"2",rest:150,cue:"上胸，练完不占周五深蹲的腿",goal:"45×8"},
+      {id:"decline",name:"下斜器械推胸",sets:3,reps:"8–12",rir:"2",rest:120,cue:"15–30°，再陡就是前束",goal:"82.5×8"},
+      {id:"lateral2",name:"绳索侧平举",sets:4,reps:"12–20",rir:"1",rest:60,cue:"单侧做，控制离心",unit:"单侧",goal:"12.5×15"},
+      {id:"dip",name:"双杠臂屈伸",sets:3,reps:"8–12",rir:"1-2",rest:120,cue:"前倾 + 肘外展 = 练胸",unit:"自重+负重",goal:"自重×10"}
+    ]},
+  pullB:{name:"蹲",full:"蹲 · 下肢主项",tag:"深蹲 + 后链",note:"W2：深蹲重回主项，重量保守放一档",
+    ex:[
+      {id:"squat",name:"杠铃深蹲",sets:4,reps:"4–6",rir:"2-3",rest:210,cue:"呼吸收紧核心，髋膝同步",goal:"120×5"},
+      {id:"hipthrust",name:"臀桥机",sets:3,reps:"8–12",rir:"2",rest:120,cue:"脚放远，偏腘绳",goal:"60×10"},
+      {id:"dbrow",name:"单臂哑铃划船",sets:3,reps:"8–12",rir:"2",rest:90,cue:"肘贴身后拉",unit:"单侧",goal:"25×10"},
+      {id:"bandcurl",name:"弹力带俯卧腿弯举",sets:3,reps:"10–15",rir:"1",rest:60,cue:"勾到顶停 1 秒"},
+      {id:"hammer",name:"锤式弯举",sets:3,reps:"10–12",rir:"1",rest:60,cue:"肱肌，别借力",unit:"单侧",goal:"20×10"},
+      {id:"calf1",name:"站姿提踵",sets:2,reps:"12–15",rir:"1",rest:45,cue:"顶峰停 1 秒",unit:"自重"}
+    ]},
+  upper:{name:"上肢",full:"上肢 · 补量",tag:"推拉合并 17 组",note:"周五练不了腿时的替代课",
+    ex:[
+      {id:"bench",name:"杠铃卧推",sets:3,reps:"5–7",rir:"2",rest:180,cue:"重量比推A 轻一档",goal:"80×5"},
+      {id:"pullup",name:"引体向上 / 高位下拉",sets:3,reps:"6–10",rir:"2",rest:150,cue:"先沉肩再拉",unit:"自重/负重",goal:"80×8"},
+      {id:"decline",name:"下斜器械推胸",sets:3,reps:"8–12",rir:"2",rest:120,cue:"下胸，15–30°",goal:"82.5×8"},
+      {id:"rowcab",name:"坐姿绳索划船",sets:3,reps:"8–12",rir:"2",rest:120,cue:"肘贴身后拉",goal:"72.5×10"},
+      {id:"lateral2",name:"绳索侧平举",sets:3,reps:"12–20",rir:"1",rest:60,cue:"单侧，控制离心",unit:"单侧",goal:"12.5×15"},
+      {id:"pushdown",name:"绳索三头下压",sets:2,reps:"10–12",rir:"1",rest:60,cue:"肘固定，只动小臂",goal:"45×12"}
+    ]},
+  weak:{name:"弱项",full:"弱项日 · 选做",tag:"25–30 分钟",note:"小肌群补量，不影响次日推A",
+    ex:[
+      {id:"lateral3",name:"绳索侧平举",sets:3,reps:"15–20",rir:"1",rest:60,cue:"单侧",unit:"单侧"},
+      {id:"reardelt",name:"反向飞鸟",sets:3,reps:"15–20",rir:"1",rest:60,cue:"后束，别用斜方"},
+      {id:"calf2",name:"站姿提踵",sets:2,reps:"10–15",rir:"1",rest:45,cue:"顶峰停 1 秒",unit:"自重"},
+      {id:"core",name:"卷腹 / 悬垂举腿",sets:3,reps:"12–20",rir:"1",rest:60,cue:"",unit:"自重"}
+    ]},
+  cardio:{name:"有氧",full:"有氧日",tag:"30–40 分钟",note:"爬楼梯或爬坡，心率 120–135",ex:[]},
+  rest:{name:"全休",full:"完全休息",tag:"恢复",note:"走路 8–10k 步，睡够比练满重要",ex:[]}
+};
+const WEEKDAY = {1:"pushA",2:"pullA",3:"cardio",4:"pushB",5:"pullB",6:"rest",0:"weak"};
+const WD = ["周日","周一","周二","周三","周四","周五","周六"];
+const ORDER = ["pushA","pullA","pushB","pullB","upper","weak","cardio","rest"];
+const MAIN = [{id:"bench",label:"卧推"},{id:"smithpress",label:"史密斯肩推"},{id:"squat",label:"深蹲"},{id:"rdl",label:"RDL"}];
+const MESO = {1:["3–4","基准周，只记重量和次数"],2:["2–3","按动作上的「本周目标」打，达标就加重"],3:["2","主项 +1 组"],
+  4:["1–2","最难受但最能长"],5:["1","夹胸/侧平举/腿弯举各 +1 组"],6:["4","减载：容量砍半，重量留 90%"]};
+
+const KEY="pushpull_v2";
+let DB = load();
+function load(){
+  try{ const r=localStorage.getItem(KEY); if(r){ const o=JSON.parse(r); if(o.goal==null)o.goal=78; if(o.knee==null)o.knee=true; return o; } }catch(e){}
+  return {start:"2026-10-26",goal:78,knee:true,logs:{},bw:{},checks:{},set:{sound:true,timer:true},timer:null};
+}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(DB)); }catch(e){ toast("存储不可用"); } }
+
+const $ = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+function ymd(d){ const x=new Date(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+const TODAY = ()=>ymd(new Date());
+function diffDays(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
+function weekNo(){ return Math.floor(diffDays(DB.start,TODAY())/7)+1; }
+function wOk(s){ return !!(s && s.w!==undefined && s.w!==null && s.w!=="" && s.r!==undefined && s.r!==null && s.r!==""); }
+function e1rm(w,r){ return (w>0&&r>0)? Math.round(w*(1+r/30)) : 0; }
+let toastT;
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1900); }
+
+function todayKey(){
+  const d=TODAY();
+  if(DB.logs[d] && DB.logs[d].day) return DB.logs[d].day;
+  let k=WEEKDAY[new Date().getDay()];
+  if(k==="pullB" && DB.knee) k="upper";
+  return k;
+}
+function rec(day){
+  const d=TODAY();
+  if(!DB.logs[d]) DB.logs[d]={day:day||todayKey(),ex:{}};
+  if(day) DB.logs[d].day=day;
+  return DB.logs[d];
+}
+function lastOf(exId){
+  const dates=Object.keys(DB.logs).filter(d=>d<TODAY()).sort().reverse();
+  for(const d of dates){
+    const s=DB.logs[d].ex?.[exId]?.sets;
+    if(s && s.some(wOk)) return {date:d, sets:s.filter(wOk)};
+  }
+  return null;
+}
+function renderTrain(){
+  const key=todayKey(), plan=PLAN[key], r=rec(key);
+  const wk=weekNo(), meso=MESO[wk]||null;
+  let html=checkCard();
+  if(!plan.ex.length){
+    html=`<div class="card"><div class="exhd"><div class="exname">${plan.tag}</div>
+      <div class="scheme">今天不练力量</div></div><div class="cue">${plan.note}</div></div>`;
+  }else{
+    plan.ex.forEach((ex,i)=>{
+      const last=lastOf(ex.id);
+      const cur=r.ex[ex.id] || (r.ex[ex.id]={sets:[]});
+      const lastTxt = last ? last.sets.slice(0,ex.sets).map(s=>s.w+"×"+s.r).join(" · ") : "";
+      html+=`<div class="card" style="animation-delay:${i*22}ms">
+        <div class="exhd"><div class="exname">${ex.name}</div>
+          <div class="scheme">${ex.sets}×${ex.reps} @${ex.rir}${ex.unit?" · "+ex.unit:""}</div></div>
+        ${ex.cue?`<div class="cue">${ex.cue}</div>`:""}
+        ${ex.goal?`<div class="goal">本周目标 ${ex.goal}</div>`:""}
+        ${lastTxt?`<div class="lastline"><span class="last">上次 ${lastTxt}</span>
+          <button class="ghost" data-act="copy-last" data-ex="${ex.id}">填入</button></div>`:""}
+        <div class="hdr"><div>#</div><div>重量 kg</div><div>次数</div><div>RIR</div><div></div></div>
+        <div class="sets">`;
+      for(let s=0;s<ex.sets;s++){
+        const v=cur.sets[s]||{};
+        html+=`<div class="srow ${wOk(v)?'done':''}" data-ex="${ex.id}" data-set="${s}">
+          <div class="sidx">${s+1}</div>
+          <div class="field"><input inputmode="decimal" value="${v.w??""}" data-f="w" placeholder="${last?.sets[s]?.w??"—"}"></div>
+          <div class="field"><input inputmode="numeric" value="${v.r??""}" data-f="r" placeholder="${last?.sets[s]?.r??"—"}"></div>
+          <div class="field"><input inputmode="numeric" value="${v.rir??""}" data-f="rir" placeholder="—"></div>
+          <button class="tick" data-act="done" aria-label="完成这组">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
+        </div>`;
+      }
+      html+=`</div></div>`;
+    });
+  }
+  let sets=0,vol=0,doneEx=0;
+  plan.ex.forEach(ex=>{
+    const ss=r.ex[ex.id]?.sets||[];
+    if(ss.some(wOk)) doneEx++;
+    ss.forEach(s=>{ if(wOk(s)){ sets++; vol+=s.w*s.r; } });
+  });
+  if(plan.ex.length) html+=`<div class="stats">
+    <div class="stat"><b>${doneEx}/${plan.ex.length||0}</b><span>动作</span></div>
+    <div class="stat"><b>${sets}</b><span>组数</span></div>
+    <div class="stat"><b>${vol?Math.round(vol).toLocaleString("en-US"):0}</b><span>容量 kg</span></div>
+  </div>`;
+  $("#v-train").innerHTML=html;
+
+  const now=new Date();
+  $("#hDate").textContent=(now.getMonth()+1)+"月"+now.getDate()+"日 "+WD[now.getDay()];
+  $("#hTitle").textContent=plan.full;
+  $("#hChip").textContent= wk<1 ? "未开始" : (meso? "第"+wk+"周 · RIR "+meso[0] : "第"+wk+"周");
+  renderDayBar(key);
+  wireTrain(r);
+}
+function checkCard(){
+  const d=TODAY(), c=DB.checks[d]||{};
+  const items=[["protein","蛋白 195g"],["kcal","热量 2200"],["steps","步数 8k"],["sleep","睡满 7h"]];
+  return `<div class="card"><div class="exhd"><div class="exname">今日打卡</div>
+    <div class="scheme">${items.filter(([k])=>c[k]).length}/4</div></div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+    ${items.map(([k,l])=>`<button class="pill ${c[k]?'on':''}" data-act="check" data-k="${k}">${l}</button>`).join("")}
+    </div></div>`;
+}
+function renderDayBar(cur){
+  $("#hDays").innerHTML=ORDER.map(k=>{
+    const p=PLAN[k];
+    let done=false;
+    Object.keys(DB.logs).forEach(d=>{
+      if(DB.logs[d].day===k && Object.values(DB.logs[d].ex||{}).some(e=>(e.sets||[]).some(s=>s&&s.w))) done=true;
+    });
+    return `<button class="day ${k===cur?'on':''} ${done?'done':''}" data-act="day" data-k="${k}">${p.name}</button>`;
+  }).join("");
+}
+function wireTrain(r){
+  $$("#v-train input").forEach(inp=>{
+    inp.addEventListener("input",()=>{
+      const row=inp.closest(".srow"), exId=row.dataset.ex, si=+row.dataset.set, f=inp.dataset.f;
+      const ex=r.ex[exId]||(r.ex[exId]={sets:[]});
+      ex.sets[si]=ex.sets[si]||{};
+      ex.sets[si][f]= inp.value===""? "" : (f==="rir"? inp.value : Number(inp.value));
+      save();
+      row.classList.toggle("done", wOk(ex.sets[si]));
+      updateStats();
+    });
+  });
+}
+function updateStats(){
+  const plan=PLAN[todayKey()], r=DB.logs[TODAY()];
+  if(!r) return;
+  let sets=0,vol=0,doneEx=0;
+  plan.ex.forEach(ex=>{
+    const ss=r.ex[ex.id]?.sets||[];
+    if(ss.some(wOk)) doneEx++;
+    ss.forEach(s=>{ if(wOk(s)){ sets++; vol+=s.w*s.r; } });
+  });
+  const b=$$("#v-train .stat b");
+  if(b.length>=3){ b[0].textContent=`${doneEx}/${plan.ex.length}`; b[1].textContent=sets; b[2].textContent=vol?Math.round(vol).toLocaleString("en-US"):0; }
+}
+function renderPlan(){
+  const rows=ORDER.slice(0,5).map(k=>{
+    const p=PLAN[k];
+    return `<div class="row"><span><b>${p.full}</b><span class="tag">${p.ex.length} 动作</span></span>
+      <span>${p.ex.reduce((a,e)=>a+e.sets,0)} 组</span></div>`;
+  }).join("");
+  const vol=[["胸",14.5,10],["三头",12,8],["背",12,10],["二头",11,8],["前束",10.5,6],["中束",10,6],
+             ["股四",10,10],["臀",13,6],["腘绳",9.5,8],["后束",9,6]]
+    .map(([n,v,mev])=>`<div class="row"><span>${n}</span><span>${v} 组 · MEV ${mev}</span></div>`).join("");
+  const mesoRows=Object.entries(MESO).map(([w,[rir,note]])=>
+    `<div class="row"><span><b>第 ${w} 周</b> · RIR ${rir}</span><span>${note}</span></div>`).join("");
+  $("#v-plan").innerHTML=`
+  <details open><summary>七天安排</summary><div class="pbody">
+    <div class="row"><span>周一</span><span>推A · 胸主导</span></div>
+    <div class="row"><span>周二</span><span>拉A · 背宽</span></div>
+    <div class="row"><span>周三</span><span>有氧 30–40 分钟</span></div>
+    <div class="row"><span>周四</span><span>推B · 肩主导</span></div>
+    <div class="row"><span>周五</span><span>${DB.knee?"上肢 · 补量（膝痛风，跳过下肢）":"拉B · 蹲"}</span></div>
+    <div class="row"><span>周六</span><span>完全休息（痛风发作期每天都算恢复日）</span></div>
+    <div class="row"><span>周日</span><span>弱项日（选做）</span></div>
+    <p style="margin-top:10px;color:var(--muted);font-size:12.5px">固定周计划，深蹲日不会漂到忙的那天。练的日子打乱就用顶部按钮切换。</p>
+  </div></details>
+  <details><summary>四个训练日 · 组数</summary><div class="pbody">${rows}</div></details>
+  <details><summary>周容量 vs MEV</summary><div class="pbody">${vol}
+    <p style="margin-top:10px;color:var(--muted);font-size:12.5px">复合动作的次要肌群按 0.5 组折算，RIR≤3 才算一组。</p></div></details>
+  <details><summary>六周中周期</summary><div class="pbody">${mesoRows}
+    <p style="margin-top:10px;color:var(--muted);font-size:12.5px">10/26 起跑，12/7 减载。</p></div></details>
+  <details><summary>饮食 · 2200 kcal</summary><div class="pbody">
+    <div class="row"><span>蛋白</span><span>195g</span></div>
+    <div class="row"><span>碳水</span><span>215g</span></div>
+    <div class="row"><span>脂肪</span><span>60g</span></div>
+    <p style="margin:10px 0 6px"><b>早</b> 燕麦 80g + 低脂奶 250ml + 蛋白粉 45g + 鸡蛋 2 个 · 67g</p>
+    <p style="margin:0 0 6px"><b>午</b> 肉 180g + 米饭 250g 熟 + 菜 300g + 豆腐 100g · 63g</p>
+    <p style="margin:0 0 6px"><b>晚</b> 鸭腿/鸡胸 250g + 荞麦面 75g 干 + 菜 400g · 66g</p>
+    <p style="margin-top:8px;color:var(--muted);font-size:12.5px">三餐制不设加餐。10 天看 7 天平均体重，不动就砍 150 kcal。</p>
+  </div></details>
+  <details><summary>进阶与减载</summary><div class="pbody">
+    <p><b>双重渐进</b>：当前重量把次数顶到上限、末组 RIR≥1 → 加重量（上肢 +2.5kg，下肢 +5kg），次数回下限。</p>
+    <p style="margin-top:8px"><b>提前减载</b>：主项连续 2 次下降 / 肩肘膝刺痛 / 晨起心率高 8 次 / 连续 3 天睡不足 6 小时。</p>
+    <p style="margin-top:8px"><b>有氧</b>：周三 30–40 分钟爬坡，心率 120–135；每天 8000–10000 步。</p>
+  </div></details>
+  <details><summary>重量怎么记（约定）</summary><div class="pbody">
+    <p><b>哑铃 / 单侧绳索</b>：记<b>单侧</b>重量。侧平举写 17.5 = 每只手 17.5kg；单臂划船写单只哑铃重量。</p>
+    <p style="margin-top:8px"><b>杠铃 / 器械 / 双手绳索</b>：记<b>总重</b>。卧推写 80 = 杠 + 片共计 80；实力推同样记含杠总重。</p>
+    <p style="margin-top:8px"><b>自重动作</b>（引体、双杠、提踵、卷腹）：重量填 <b>0</b>，只填次数；带负重就填负重值（双杠 +30 填 30）。</p>
+    <p style="margin-top:8px;color:var(--muted)">三种都能记进组数统计，容量只统计有重量的组。</p>
+  </div></details>
+  <details><summary>下胸怎么练</summary><div class="pbody">
+    <p>每周 7.5 组专门打下半区：高位→低位夹胸 3 组、下斜推胸 3 组、双杠（前倾）3 组。</p>
+    <p style="margin-top:8px;color:var(--muted)">体脂 22% 时线条看不见，17% 有影子，15% 才清晰。先掉脂。</p>
+  </div></details>`;
+}
+function spark(vals,color){
+  if(vals.length<2) return "";
+  const w=100,h=52,min=Math.min(...vals),max=Math.max(...vals),span=(max-min)||1;
+  const pts=vals.map((v,i)=>[i/(vals.length-1)*w, h-4-((v-min)/span)*(h-12)]);
+  const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path d="${d}" fill="none" stroke="${color||"var(--acc)"}" stroke-width="1.8" stroke-linecap="round"
+      stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function renderProg(){
+  const dates=Object.keys(DB.bw).sort();
+  const wvals=dates.map(d=>DB.bw[d].w).filter(Boolean);
+  const last7=wvals.slice(-7), prev7=wvals.slice(-14,-7);
+  const avg=last7.length? last7.reduce((a,b)=>a+b,0)/last7.length:0;
+  const pavg=prev7.length? prev7.reduce((a,b)=>a+b,0)/prev7.length:0;
+  const dAvg=(avg&&pavg)? avg-pavg:0;
+  let html=`<div class="card">
+    <div class="mrow"><span>体重</span><span class="mval">${avg?avg.toFixed(1)+" kg":"—"}
+      ${dAvg?`<span class="delta">${dAvg>0?"+":""}${dAvg.toFixed(2)} 比上周</span>`:""}</span></div>
+    ${spark(wvals.slice(-16))}
+    <div class="stats" style="margin-top:10px">
+      <div class="stat"><b>${avg?(avg-DB.goal).toFixed(1):"—"}</b><span>距 ${DB.goal}kg</span></div>
+      <div class="stat"><b>${dates.length?(DB.bw[dates[dates.length-1]]?.waist||"—"):"—"}</b><span>腰围</span></div>
+      <div class="stat"><b>${wvals.length}</b><span>记录天数</span></div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <input class="inp" id="bwIn" inputmode="decimal" placeholder="体重 kg" value="${DB.bw[TODAY()]?.w||""}">
+      <input class="inp" id="waistIn" inputmode="decimal" placeholder="腰围 cm" value="${DB.bw[TODAY()]?.waist||""}">
+    </div>
+    <button class="btn" style="margin-top:10px" data-act="save-bw">保存体重</button>
+  </div>`;
+  html+=`<div class="card"><div class="exhd"><div class="exname">主项估算 1RM</div><div class="scheme">Epley</div></div>`;
+  MAIN.forEach(m=>{
+    const pts=[];
+    Object.keys(DB.logs).sort().forEach(d=>{
+      let best=0;
+      (DB.logs[d].ex?.[m.id]?.sets||[]).forEach(s=>{ const e=e1rm(+s.w||0,+s.r||0); if(e>best) best=e; });
+      if(best) pts.push(best);
+    });
+    const first=pts[0]||0,last=pts[pts.length-1]||0,dl=last-first;
+    html+=`<div style="margin-top:12px">
+      <div class="mrow"><span>${m.label}</span><span class="mval">${last?last+" kg":"—"}
+      ${dl?`<span class="delta">${dl>0?"+":""}${dl}</span>`:""}</span></div>
+      ${pts.length>1?spark(pts.slice(-12)):`<div class="empty" style="padding:8px 0">${pts.length?"1 次记录":"还没有数据"}</div>`}
+    </div>`;
+  });
+  html+=`</div>`;
+  const byWeek={};
+  Object.keys(DB.logs).forEach(d=>{
+    const wk=Math.max(1,Math.floor(diffDays(DB.start,d)/7)+1);
+    let s=0,v=0;
+    Object.values(DB.logs[d].ex||{}).forEach(ex=>(ex.sets||[]).forEach(x=>{ if(wOk(x)){ s++; v+=x.w*x.r; } }));
+    if(s){ byWeek[wk]=byWeek[wk]||{s:0,v:0,d:0}; byWeek[wk].s+=s; byWeek[wk].v+=v; byWeek[wk].d++; }
+  });
+  const wkKeys=Object.keys(byWeek).sort((a,b)=>a-b);
+  html+=`<div class="card"><div class="exhd"><div class="exname">每周训练量</div></div>
+    <table style="margin-top:8px"><tr><th>周</th><th class="r">练</th><th class="r">组</th><th class="r">容量</th></tr>
+    ${wkKeys.length?wkKeys.map(k=>`<tr><td>第 ${k} 周</td><td class="r">${byWeek[k].d} 天</td>
+      <td class="r">${byWeek[k].s}</td><td class="r">${Math.round(byWeek[k].v).toLocaleString("en-US")}</td></tr>`).join("")
+      :`<tr><td colspan="4" class="empty">还没有训练记录</td></tr>`}
+    </table></div>`;
+  $("#v-prog").innerHTML=html;
+}
+function renderData(){
+  $("#v-data").innerHTML=`
+  <div class="card">
+    <div class="exhd"><div class="exname">本周复盘</div><div class="scheme">一键生成</div></div>
+    <div class="cue">体重变化、训练量、主项重量、蛋白达标天数打包，直接分享或复制给我。</div>
+    <div style="display:grid;gap:8px;margin-top:12px">
+      <button class="btn" data-act="report">生成并分享</button>
+      <button class="btn sec" data-act="copy-report">复制成文字</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="exname">导出</div>
+    <div style="display:grid;gap:8px;margin-top:12px">
+      <button class="btn sec" data-act="csv-train">训练 CSV</button>
+      <button class="btn sec" data-act="csv-bw">体重 CSV</button>
+      <button class="btn sec" data-act="backup">备份 JSON</button>
+      <button class="btn sec" data-act="import">导入 JSON</button>
+      <div class="grid2">
+        <button class="btn sec" data-act="copy-backup">复制备份</button>
+        <button class="btn sec" data-act="paste-backup">粘贴恢复</button>
+      </div>
+      <input type="file" id="impFile" accept=".json,application/json" hidden>
+    </div>
+    <div class="cue" style="margin-top:8px">换设备或换链接时：旧页面「备份 JSON」→ 新页面「导入 JSON」，记录就能搬过来。</div>
+  </div>
+  <div class="card">
+    <div class="exname">设置</div>
+    <p class="lbl" style="margin-top:12px">中周期开始日期</p>
+    <input class="inp" type="date" id="startIn" value="${DB.start}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+      <span style="font-size:14px">组间休息自动计时</span>
+      <button class="pill ${DB.set.timer?'on':''}" data-act="toggle-timer" style="min-width:58px;text-align:center">${DB.set.timer?"开":"关"}</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+      <span style="font-size:14px">计时结束提示音</span>
+      <button class="pill ${DB.set.sound?'on':''}" data-act="toggle-sound" style="min-width:58px;text-align:center">${DB.set.sound?"开":"关"}</button>
+    </div>
+    <button class="btn sec" style="margin-top:14px" data-act="save-start">保存开始日期</button>
+    <p class="lbl" style="margin-top:18px">终点体重（进度页「距 xx kg」用它算）</p>
+    <div class="grid2">
+      <input class="inp" id="goalIn" inputmode="decimal" placeholder="78" value="${DB.goal}">
+      <button class="btn sec" data-act="save-goal">保存终点</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+      <span style="font-size:14px">暂停下肢训练</span>
+      <button class="pill ${DB.knee?'on':''}" data-act="toggle-knee" style="min-width:58px;text-align:center">${DB.knee?"开":"关"}</button>
+    </div>
+    <div class="cue" style="margin-top:8px">痛风发作或膝盖有痛时打开：周五自动换成「上肢 · 补量」，不排深蹲。缓解后再关。</div>
+  </div>
+  <div class="card">
+    <div class="exname" style="color:#c0392b">清空</div>
+    <div class="cue">删掉全部训练和体重记录，不可恢复</div>
+    <button class="btn sec" style="margin-top:12px;color:#c0392b" data-act="clear">清空全部数据</button>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:11.5px;padding:4px 0 20px">数据只存在这台手机 · 推拉 v6</p>`;
+}
+
+let T={end:0,total:0,label:"",raf:0,wake:null,finished:false};
+let AC=null;
+function ac(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended") AC.resume(); return AC; }
+function beep(){
+  if(!DB.set.sound) return;
+  try{
+    const c=ac();
+    [0,0.18].forEach((t,i)=>{
+      const o=c.createOscillator(), g=c.createGain();
+      o.frequency.value=i?1180:880; o.type="sine";
+      g.gain.setValueAtTime(0.0001,c.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.22,c.currentTime+t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t+0.14);
+      o.connect(g).connect(c.destination); o.start(c.currentTime+t); o.stop(c.currentTime+t+0.16);
+    });
+  }catch(e){}
+}
+async function wakeLock(){ try{ if("wakeLock" in navigator && !T.wake) T.wake=await navigator.wakeLock.request("screen"); }catch(e){} }
+function startTimer(sec,label){
+  T.end=Date.now()+sec*1000; T.total=sec; T.label=label; T.finished=false;
+  DB.timer={end:T.end,total:sec,label}; save();
+  $("#tLabel").textContent=label; $("#timer").classList.add("show");
+  wakeLock(); tick();
+}
+function restoreTimer(){
+  if(!DB.timer) return;
+  if(DB.timer.end>Date.now()){
+    T={end:DB.timer.end,total:DB.timer.total,label:DB.timer.label,raf:0,wake:null,finished:false};
+    $("#tLabel").textContent=T.label; $("#timer").classList.add("show"); tick();
+  }else{ DB.timer=null; save(); }
+}
+function stopTimer(hide=true){
+  cancelAnimationFrame(T.raf);
+  if(hide) $("#timer").classList.remove("show");
+  if(T.wake){ try{ T.wake.release(); }catch(e){} T.wake=null; }
+  DB.timer=null; save();
+}
+function tick(){
+  cancelAnimationFrame(T.raf);
+  const loop=()=>{
+    const left=Math.max(0,T.end-Date.now());
+    const s=Math.ceil(left/1000);
+    $("#tNum").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+    const p=Math.max(0,Math.min(1,left/(T.total*1000)));
+    $("#ringFg").setAttribute("stroke-dashoffset",String(100.5*(1-p)));
+    document.querySelector(".ring .t").textContent=s<=99?s:"";
+    if(left<=0 && !T.finished){
+      T.finished=true; beep();
+      if(navigator.vibrate) navigator.vibrate([120,80,120]);
+      setTimeout(()=>{ if(T.finished) stopTimer(); },4000);
+    }
+    if(!T.finished) T.raf=requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+function weekRange(){
+  const wk=Math.max(1,weekNo());
+  const start=new Date(DB.start+"T00:00:00"); start.setDate(start.getDate()+(wk-1)*7);
+  const end=new Date(start); end.setDate(end.getDate()+6);
+  return {s:ymd(start),e:ymd(end),wk};
+}
+function buildReport(){
+  const {s,e,wk}=weekRange();
+  const inWk=d=>d>=s&&d<=e;
+  const ds=Object.keys(DB.logs).filter(inWk).sort();
+  let sets=0,vol=0,days=0; const best={};
+  ds.forEach(d=>{
+    let cnt=0;
+    Object.entries(DB.logs[d].ex||{}).forEach(([id,ex])=>{
+      (ex.sets||[]).forEach(x=>{
+        if(wOk(x)){ sets++; vol+=x.w*x.r; cnt++;
+          if(!best[id] || x.w*(1+x.r/30) > best[id].w*(1+best[id].r/30)) best[id]={w:+x.w,r:+x.r};
+        }
+      });
+    });
+    if(cnt) days++;
+  });
+  const bwDates=Object.keys(DB.bw).filter(inWk).sort();
+  const bws=bwDates.map(d=>DB.bw[d].w).filter(Boolean);
+  const avg=bws.length? bws.reduce((a,b)=>a+b,0)/bws.length:0;
+  const prev=Object.keys(DB.bw).filter(d=>d<s).sort().slice(-7).map(d=>DB.bw[d].w).filter(Boolean);
+  const pavg=prev.length? prev.reduce((a,b)=>a+b,0)/prev.length:0;
+  const checks=Object.keys(DB.checks).filter(inWk);
+  const proteinDays=checks.filter(d=>DB.checks[d].protein).length;
+  const lbl={bench:"卧推",smithpress:"肩推",squat:"深蹲",rdl:"RDL"};
+  const mains=Object.keys(lbl).map(id=>best[id]?`${lbl[id]} ${best[id].w}×${best[id].r}`:`${lbl[id]} —`).join("｜");
+  const pre = TODAY() < DB.start ? "（未开始，" + DB.start.slice(5) + " 起算）" : "";
+  return [
+    `第 ${wk} 周复盘${pre}（${s.slice(5)}–${e.slice(5)}）`,
+    `体重 ${avg?avg.toFixed(1)+"kg":"—"}${(avg&&pavg)?`（${(avg-pavg>0?"+":"")}${(avg-pavg).toFixed(2)}）`:""} · 距 ${DB.goal}kg ${avg?(avg-DB.goal).toFixed(1):"—"}`,
+    `训练 ${days} 天 / ${sets} 组 / 容量 ${Math.round(vol).toLocaleString("en-US")}kg`,
+    `主项 ${mains}`,
+    `蛋白达标 ${proteinDays}/7 天`
+  ].join("\n");
+}
+function trainCsv(){
+  const rows=[["日期","训练日","动作","组","重量kg","次数","RIR"]];
+  Object.keys(DB.logs).sort().forEach(d=>{
+    const r=DB.logs[d], p=PLAN[r.day]; if(!p) return;
+    p.ex.forEach(ex=>{
+      (r.ex[ex.id]?.sets||[]).forEach((s,i)=>{
+        if(s&&((s.w!==undefined&&s.w!=="")||s.r)) rows.push([d,p.name,ex.name,i+1,s.w||"",s.r||"",s.rir||""]);
+      });
+    });
+  });
+  return "\ufeff"+rows.map(r=>r.join(",")).join("\n");
+}
+function bwCsv(){
+  const rows=[["日期","体重kg","腰围cm"]];
+  Object.keys(DB.bw).sort().forEach(d=>rows.push([d,DB.bw[d].w||"",DB.bw[d].waist||""]));
+  return "\ufeff"+rows.map(r=>r.join(",")).join("\n");
+}
+function dl(name,text,type){
+  const b=new Blob([text],{type:type||"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+async function shareReport(){
+  const text=buildReport();
+  try{
+    const f=new File([trainCsv()],"训练_"+TODAY()+".csv",{type:"text/csv"});
+    if(navigator.canShare && navigator.canShare({files:[f]})){
+      await navigator.share({files:[f],title:"周复盘",text:text}); return;
+    }
+    if(navigator.share){ await navigator.share({title:"周复盘",text:text}); return; }
+  }catch(e){ if(e&&e.name==="AbortError") return; }
+  try{ await navigator.clipboard.writeText(text); toast("已复制到剪贴板"); }
+  catch(e){ toast("这个浏览器不支持分享"); }
+}
+
+document.addEventListener("click",async ev=>{
+  const el=ev.target.closest("[data-act],[data-view]");
+  if(!el) return;
+  if(el.dataset.view){ show(el.dataset.view); return; }
+  const act=el.dataset.act;
+  if(act==="day"){ rec(el.dataset.k); save(); renderTrain(); return; }
+  if(act==="check"){ const d=TODAY(); DB.checks[d]=DB.checks[d]||{};
+    DB.checks[d][el.dataset.k]=!DB.checks[d][el.dataset.k]; save(); renderTrain(); return; }
+  if(act==="done"){
+    const row=el.closest(".srow"), exId=row.dataset.ex, si=+row.dataset.set;
+    const r=DB.logs[TODAY()];
+    const cur=(r.ex[exId].sets[si]=r.ex[exId].sets[si]||{});
+    const exDef=PLAN[r.day].ex.find(x=>x.id===exId);
+    if(!wOk(cur)){
+      const last=lastOf(exId);
+      if(last && last.sets[si]){
+        cur.w=last.sets[si].w; cur.r=last.sets[si].r;
+        row.querySelector('[data-f="w"]').value=cur.w;
+        row.querySelector('[data-f="r"]').value=cur.r;
+      }else{ toast("先填重量和次数"); return; }
+      save();
+    }
+    row.classList.add("done"); updateStats();
+    if(DB.set.timer) startTimer(exDef?.rest||90, exDef?.name||"休息");
+    return;
+  }
+  if(act==="copy-last"){
+    const exId=el.dataset.ex, last=lastOf(exId);
+    if(!last) return;
+    const r=DB.logs[TODAY()];
+    r.ex[exId]=r.ex[exId]||{sets:[]};
+    last.sets.forEach((s,i)=>{ r.ex[exId].sets[i]={w:s.w,r:s.r,rir:s.rir||""}; });
+    save(); renderTrain(); toast("已填入上次的数据"); return;
+  }
+  if(act==="t-add"){ if(T.end){ T.end+=15000; T.total+=15; if(T.finished){T.finished=false;tick();} } return; }
+  if(act==="t-skip"){ stopTimer(); return; }
+  if(act==="save-bw"){
+    const w=parseFloat($("#bwIn").value), waist=parseFloat($("#waistIn").value);
+    if(!w){ toast("先填体重"); return; }
+    DB.bw[TODAY()]={w,waist:waist||""}; save(); renderProg(); toast("已保存"); return;
+  }
+  if(act==="toggle-timer"){ DB.set.timer=!DB.set.timer; save(); renderData(); return; }
+  if(act==="toggle-sound"){ DB.set.sound=!DB.set.sound; save(); renderData(); return; }
+  if(act==="save-start"){ DB.start=$("#startIn").value||DB.start; save(); renderTrain(); toast("已保存"); return; }
+  if(act==="save-goal"){ const g=parseFloat($("#goalIn").value); if(!g){ toast("先填终点体重"); return; }
+    DB.goal=g; save(); renderData(); toast("终点已设为 "+g+"kg"); return; }
+  if(act==="toggle-knee"){ DB.knee=!DB.knee; save(); renderData(); renderTrain(); toast(DB.knee?"已暂停下肢训练":"已恢复下肢训练"); return; }
+  if(act==="csv-train"){ dl("训练_"+TODAY()+".csv",trainCsv()); toast("已导出"); return; }
+  if(act==="csv-bw"){ dl("体重_"+TODAY()+".csv",bwCsv()); toast("已导出"); return; }
+  if(act==="backup"){ dl("备份_"+TODAY()+".json",JSON.stringify(DB,null,2),"application/json"); toast("已备份"); return; }
+  if(act==="import"){ const f=$("#impFile"); if(f) f.click(); return; }
+  if(act==="copy-backup"){
+    try{ await navigator.clipboard.writeText(JSON.stringify(DB));
+      toast("备份已复制；到新页面点「粘贴恢复」"); }
+    catch(e){ toast("复制失败，改用「备份 JSON」"); }
+    return;
+  }
+  if(act==="paste-backup"){
+    try{
+      const t=await navigator.clipboard.readText();
+      const o=JSON.parse(t);
+      if(!o.logs) throw new Error("格式不对");
+      DB=o; if(DB.goal==null)DB.goal=78; if(DB.knee==null)DB.knee=true;
+      if(!DB.set) DB.set={sound:true,timer:true};
+      save(); renderAll(); toast("已恢复 "+Object.keys(DB.logs).length+" 天记录");
+    }catch(e){ toast("剪贴板里没有可用的备份"); }
+    return;
+  }
+  if(act==="report"){ await shareReport(); return; }
+  if(act==="copy-report"){
+    try{ await navigator.clipboard.writeText(buildReport()); toast("已复制，粘给我"); }
+    catch(e){ toast("复制失败"); }
+    return;
+  }
+  if(act==="clear"){
+    if(confirm("清空全部数据？不可恢复。")){
+      DB={start:DB.start,logs:{},bw:{},checks:{},set:DB.set,timer:null}; save(); renderAll(); toast("已清空");
+    }
+  }
+});
+function show(v){
+  ["train","plan","prog","data"].forEach(k=>{ const s=$("#v-"+k); if(s) s.hidden=k!==v; });
+  $$(".tab").forEach(t=>t.classList.toggle("on",t.dataset.view===v));
+  const label={plan:"计划",prog:"进度",data:"数据"}[v];
+  if(label){ $("#hTitle").textContent=label; $("#hDays").style.display="none"; }
+  else { $("#hDays").style.display="flex"; renderTrain(); }
+  if(v==="plan") renderPlan();
+  if(v==="prog") renderProg();
+  if(v==="data") renderData();
+  window.scrollTo(0,0);
+}
+function renderAll(){
+  renderTrain();
+  const open=$$(".tab").find(t=>t.classList.contains("on"))?.dataset.view;
+  if(open==="plan") renderPlan();
+  if(open==="prog") renderProg();
+  if(open==="data") renderData();
+}
+["touchstart","click"].forEach(e=>document.addEventListener(e,()=>{ try{ac();}catch(err){} },{once:true}));
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ renderTrain(); restoreTimer(); } });
+
+document.addEventListener("change", ev=>{
+  const f=ev.target;
+  if(!f || f.id!=="impFile" || !f.files || !f.files[0]) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const o=JSON.parse(rd.result);
+      if(!o.logs) throw new Error("不是备份文件");
+      DB=o;
+      if(DB.goal==null) DB.goal=78;
+      if(DB.knee==null) DB.knee=true;
+      if(!DB.set) DB.set={sound:true,timer:true};
+      save(); renderAll(); toast("已导入 "+Object.keys(DB.logs).length+" 天记录");
+    }catch(err){ toast("导入失败："+err.message); }
+  };
+  rd.readAsText(f.files[0]);
+});
+
+renderTrain();
+restoreTimer();
+if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="127.0.0.1" || location.hostname==="localhost")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
